@@ -104,7 +104,7 @@ class GameFilter {
     }
 
     if (minAge != null) {
-      filters.add('Age: ${minAge}+');
+      filters.add('Age: $minAge+');
     }
 
     return filters.join(', ');
