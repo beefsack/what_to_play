@@ -3,7 +3,11 @@ class Collection {
   final String name;
   final String bggUsername;
 
-  Collection({required this.id, required this.name, required this.bggUsername});
+  const Collection({
+    required this.id,
+    required this.name,
+    required this.bggUsername,
+  });
 
   Map<String, dynamic> toJson() {
     return {'id': id, 'name': name, 'bggUsername': bggUsername};
