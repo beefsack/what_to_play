@@ -327,16 +327,29 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.75,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemCount: _filteredGames.length,
-              itemBuilder: (context, index) {
-                return BoardGameCard(game: _filteredGames[index]);
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Calculate number of columns based on screen width
+                // Each card should be approximately 200px wide
+                const double cardWidth = 200.0;
+                const double spacing = 8.0;
+                final int crossAxisCount = ((constraints.maxWidth + spacing) /
+                        (cardWidth + spacing))
+                    .floor()
+                    .clamp(1, 10);
+
+                return GridView.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    childAspectRatio: 0.75,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                  ),
+                  itemCount: _filteredGames.length,
+                  itemBuilder: (context, index) {
+                    return BoardGameCard(game: _filteredGames[index]);
+                  },
+                );
               },
             ),
           ),
