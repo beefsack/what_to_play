@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:logging/logging.dart';
 
 class CacheService {
   static const String _collectionCachePrefix = 'collection_';
   static const String _thingCachePrefix = 'thing_';
+  final Logger _logger = Logger('CacheService');
 
   Future<String> get _localPath async {
     final directory = await getApplicationDocumentsDirectory();
@@ -31,7 +33,7 @@ class CacheService {
       };
       await file.writeAsString(jsonEncode(cacheData));
     } catch (e) {
-      print('Error caching collection data for $username: $e');
+      _logger.severe('Error caching collection data for $username: $e');
     }
   }
 
@@ -44,7 +46,7 @@ class CacheService {
       final cacheData = jsonDecode(contents) as Map<String, dynamic>;
       return cacheData['data'] as String?;
     } catch (e) {
-      print('Error reading cached collection data for $username: $e');
+      _logger.severe('Error reading cached collection data for $username: $e');
       return null;
     }
   }
@@ -68,7 +70,7 @@ class CacheService {
       };
       await file.writeAsString(jsonEncode(cacheData));
     } catch (e) {
-      print('Error caching thing data for $gameId: $e');
+      _logger.severe('Error caching thing data for $gameId: $e');
     }
   }
 
@@ -81,7 +83,7 @@ class CacheService {
       final cacheData = jsonDecode(contents) as Map<String, dynamic>;
       return cacheData['data'] as String?;
     } catch (e) {
-      print('Error reading cached thing data for $gameId: $e');
+      _logger.severe('Error reading cached thing data for $gameId: $e');
       return null;
     }
   }
@@ -113,7 +115,7 @@ class CacheService {
         await file.delete();
       }
     } catch (e) {
-      print('Error clearing collection cache for $username: $e');
+      _logger.severe('Error clearing collection cache for $username: $e');
     }
   }
 
@@ -124,7 +126,7 @@ class CacheService {
         await file.delete();
       }
     } catch (e) {
-      print('Error clearing thing cache for $gameId: $e');
+      _logger.severe('Error clearing thing cache for $gameId: $e');
     }
   }
 
@@ -144,7 +146,7 @@ class CacheService {
         }
       }
     } catch (e) {
-      print('Error clearing all cache: $e');
+      _logger.severe('Error clearing all cache: $e');
     }
   }
 }

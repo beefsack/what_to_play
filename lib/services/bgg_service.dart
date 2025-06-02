@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
+import 'package:logging/logging.dart';
 import '../models/board_game.dart';
 import '../models/player_count_recommendation.dart';
 import 'cache_service.dart';
@@ -13,6 +14,7 @@ class BGGService {
 
   static DateTime? _lastRequestTime;
   final CacheService _cacheService = CacheService();
+  final Logger _logger = Logger('BGGService');
 
   Future<List<BoardGame>> getCollection(
     String username, {
@@ -34,7 +36,9 @@ class BGGService {
       if (collectionXml == null) {
         // No cache, fetch from API
         onProgress?.call('Fetching collection from BoardGameGeek...');
-        print('No cached collection data for $username, fetching from API...');
+        _logger.info(
+          'No cached collection data for $username, fetching from API...',
+        );
         final collectionUri = Uri.parse(
           '$baseUrl/collection?own=1&excludesubtype=boardgameexpansion&username=$username',
         );
@@ -49,7 +53,7 @@ class BGGService {
         onProgress?.call('Collection data cached');
       } else {
         onProgress?.call('Using cached collection data');
-        print('Using cached collection data for $username');
+        _logger.info('Using cached collection data for $username');
       }
 
       final collectionDocument = XmlDocument.parse(collectionXml);
@@ -75,11 +79,13 @@ class BGGService {
       final missingIds = await _cacheService.getMissingThingCacheIds(objectIds);
 
       if (missingIds.isNotEmpty) {
-        print('Fetching missing thing data for ${missingIds.length} games...');
+        _logger.info(
+          'Fetching missing thing data for ${missingIds.length} games...',
+        );
         await _fetchAndCacheThingData(missingIds, onProgress: onProgress);
       } else {
         onProgress?.call('All game data is cached');
-        print('All thing data is cached');
+        _logger.info('All thing data is cached');
       }
 
       // Now build the games from cached data
@@ -109,7 +115,7 @@ class BGGService {
                 final game = _parseGameFromXml(thingItem, collectionItem);
                 games.add(game);
               } catch (e) {
-                print('Error parsing game $id: $e');
+                _logger.warning('Error parsing game $id: $e');
               }
             }
             break;
@@ -119,7 +125,7 @@ class BGGService {
 
       return games;
     } catch (e) {
-      print('Error fetching collection with cache: $e');
+      _logger.severe('Error fetching collection with cache: $e');
       throw Exception('Failed to load collection: $e');
     }
   }
@@ -169,7 +175,7 @@ class BGGService {
       final timeSinceLastRequest = DateTime.now().difference(_lastRequestTime!);
       if (timeSinceLastRequest < rateLimitDelay) {
         final waitTime = rateLimitDelay - timeSinceLastRequest;
-        print('Rate limiting: waiting ${waitTime.inMilliseconds}ms');
+        _logger.info('Rate limiting: waiting ${waitTime.inMilliseconds}ms');
         await Future.delayed(waitTime);
       }
     }
@@ -192,7 +198,7 @@ class BGGService {
         return response;
       } else if (response.statusCode == 202) {
         onProgress?.call('BGG server building collection, retrying...');
-        print(
+        _logger.info(
           'Received 202 response, attempt ${attempt + 1}/$maxRetries. Retrying...',
         );
         if (attempt < maxRetries - 1) {

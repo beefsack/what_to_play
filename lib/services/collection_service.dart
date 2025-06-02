@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:logging/logging.dart';
 import '../models/collection.dart';
 
 class CollectionService {
   static const String _collectionsKey = 'collections';
+  final Logger _logger = Logger('CollectionService');
 
   Future<List<Collection>> getCollections() async {
     try {
@@ -19,7 +21,7 @@ class CollectionService {
           .map((json) => Collection.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      print('Error loading collections: $e');
+      _logger.severe('Error loading collections: $e');
       return [];
     }
   }
@@ -32,7 +34,7 @@ class CollectionService {
       );
       await prefs.setString(_collectionsKey, collectionsJson);
     } catch (e) {
-      print('Error saving collections: $e');
+      _logger.severe('Error saving collections: $e');
     }
   }
 
