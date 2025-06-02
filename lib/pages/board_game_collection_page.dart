@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/board_game.dart';
+import '../models/game_filter.dart';
+import '../models/player_count_recommendation.dart';
 import '../services/bgg_service.dart';
 import '../widgets/board_game_card.dart';
+import '../widgets/game_filter_widget.dart';
 
 class BoardGameCollectionPage extends StatefulWidget {
   final String username;
@@ -20,11 +23,13 @@ class BoardGameCollectionPage extends StatefulWidget {
 
 class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
   final BGGService _bggService = BGGService();
-  List<BoardGame> _games = [];
+  List<BoardGame> _allGames = [];
+  List<BoardGame> _filteredGames = [];
   bool _isLoading = false;
   String? _error;
   String _loadingStatus = '';
   double? _loadingProgress;
+  GameFilter _currentFilter = GameFilter();
 
   @override
   void initState() {
@@ -44,26 +49,102 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
       final games = await _bggService.getCollection(
         widget.username,
         onProgress: (status, {progress}) {
-          setState(() {
-            _loadingStatus = status;
-            _loadingProgress = progress;
-          });
+          if (mounted) {
+            setState(() {
+              _loadingStatus = status;
+              _loadingProgress = progress;
+            });
+          }
         },
       );
-      setState(() {
-        _games = games;
-        _isLoading = false;
-        _loadingStatus = '';
-        _loadingProgress = null;
-      });
+      if (mounted) {
+        setState(() {
+          _allGames = games;
+          _filteredGames = games;
+          _isLoading = false;
+          _loadingStatus = '';
+          _loadingProgress = null;
+        });
+        _applyFilter();
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-        _loadingStatus = '';
-        _loadingProgress = null;
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+          _loadingStatus = '';
+          _loadingProgress = null;
+        });
+      }
     }
+  }
+
+  void _applyFilter() {
+    setState(() {
+      _filteredGames =
+          _allGames.where((game) {
+            // Player count filter
+            if (_currentFilter.playerCount != null) {
+              final playerCount = _currentFilter.playerCount!;
+              switch (_currentFilter.playerCountType) {
+                case PlayerCountFilterType.best:
+                  final bestCounts =
+                      game.playerCountRecommendations.getBestPlayerCounts();
+                  if (!bestCounts.contains(playerCount)) return false;
+                  break;
+                case PlayerCountFilterType.recommended:
+                  final recommendedCounts =
+                      game.playerCountRecommendations
+                          .getRecommendedPlayerCounts();
+                  if (!recommendedCounts.contains(playerCount)) return false;
+                  break;
+                case PlayerCountFilterType.minMax:
+                  if (playerCount < game.minPlayers ||
+                      playerCount > game.maxPlayers)
+                    return false;
+                  break;
+              }
+            }
+
+            // Time filters
+            if (_currentFilter.minTime != null &&
+                game.playingTime < _currentFilter.minTime!) {
+              return false;
+            }
+            if (_currentFilter.maxTime != null &&
+                game.playingTime > _currentFilter.maxTime!) {
+              return false;
+            }
+
+            // Weight filters
+            if (_currentFilter.minWeight != null &&
+                game.averageWeight < _currentFilter.minWeight!) {
+              return false;
+            }
+            if (_currentFilter.maxWeight != null &&
+                game.averageWeight > _currentFilter.maxWeight!) {
+              return false;
+            }
+
+            return true;
+          }).toList();
+    });
+  }
+
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => GameFilterWidget(
+            initialFilter: _currentFilter,
+            onFilterChanged: (newFilter) {
+              setState(() {
+                _currentFilter = newFilter;
+              });
+              _applyFilter();
+            },
+          ),
+    );
   }
 
   @override
@@ -73,6 +154,16 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.collectionName ?? 'Board Game Collection'),
         actions: [
+          IconButton(
+            icon: Icon(
+              Icons.filter_list,
+              color:
+                  _currentFilter.hasActiveFilters
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+            ),
+            onPressed: _showFilterDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _isLoading ? null : _loadCollection,
@@ -154,7 +245,7 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
       );
     }
 
-    if (_games.isEmpty) {
+    if (_allGames.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -166,6 +257,32 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
             Text(
               'The collection appears to be empty',
               style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_filteredGames.isEmpty && _currentFilter.hasActiveFilters) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.search_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'No games match your filters',
+              style: TextStyle(fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Try adjusting your filter criteria',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _showFilterDialog,
+              child: const Text('Adjust Filters'),
             ),
           ],
         ),
@@ -188,11 +305,21 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${_games.length} games • BGG User: ${widget.username}',
+                '${_filteredGames.length} of ${_allGames.length} games • BGG User: ${widget.username}',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
+              if (_currentFilter.hasActiveFilters) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Filters: ${_currentFilter.getActiveFiltersDescription()}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -207,9 +334,9 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
               ),
-              itemCount: _games.length,
+              itemCount: _filteredGames.length,
               itemBuilder: (context, index) {
-                return BoardGameCard(game: _games[index]);
+                return BoardGameCard(game: _filteredGames[index]);
               },
             ),
           ),
