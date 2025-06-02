@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/board_game.dart';
 
 class BoardGameCard extends StatelessWidget {
@@ -14,35 +15,28 @@ class BoardGameCard extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // Background image
-          game.thumbnailUrl.isNotEmpty
-              ? Image.network(
-                game.thumbnailUrl,
+          (game.imageUrl.isNotEmpty ? game.imageUrl : game.thumbnailUrl)
+                  .isNotEmpty
+              ? CachedNetworkImage(
+                imageUrl:
+                    game.imageUrl.isNotEmpty
+                        ? game.imageUrl
+                        : game.thumbnailUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Icon(
-                      Icons.image_not_supported,
-                      size: 50,
-                      color: Colors.grey,
+                placeholder:
+                    (context, url) => Container(
+                      color: Colors.grey[300],
+                      child: const Center(child: CircularProgressIndicator()),
                     ),
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    color: Colors.grey[300],
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        value:
-                            loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
+                errorWidget:
+                    (context, url, error) => Container(
+                      color: Colors.grey[300],
+                      child: const Icon(
+                        Icons.image_not_supported,
+                        size: 50,
+                        color: Colors.grey,
                       ),
                     ),
-                  );
-                },
               )
               : Container(
                 color: Colors.grey[300],
