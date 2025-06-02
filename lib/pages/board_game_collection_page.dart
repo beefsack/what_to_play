@@ -23,6 +23,8 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
   List<BoardGame> _games = [];
   bool _isLoading = false;
   String? _error;
+  String _loadingStatus = '';
+  double? _loadingProgress;
 
   @override
   void initState() {
@@ -34,18 +36,32 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _loadingStatus = 'Starting...';
+      _loadingProgress = null;
     });
 
     try {
-      final games = await _bggService.getCollection(widget.username);
+      final games = await _bggService.getCollection(
+        widget.username,
+        onProgress: (status, {progress}) {
+          setState(() {
+            _loadingStatus = status;
+            _loadingProgress = progress;
+          });
+        },
+      );
       setState(() {
         _games = games;
         _isLoading = false;
+        _loadingStatus = '';
+        _loadingProgress = null;
       });
     } catch (e) {
       setState(() {
         _error = e.toString();
         _isLoading = false;
+        _loadingStatus = '';
+        _loadingProgress = null;
       });
     }
   }
@@ -69,19 +85,41 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Loading board game collection...'),
-            SizedBox(height: 8),
-            Text(
-              'This may take a moment as we fetch game details',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 24),
+              Text(
+                _loadingStatus.isNotEmpty
+                    ? _loadingStatus
+                    : 'Loading board game collection...',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              if (_loadingProgress != null) ...[
+                LinearProgressIndicator(
+                  value: _loadingProgress,
+                  backgroundColor: Colors.grey[300],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${(_loadingProgress! * 100).round()}%',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ] else ...[
+                const Text(
+                  'This may take a moment as we fetch game details',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
+          ),
         ),
       );
     }

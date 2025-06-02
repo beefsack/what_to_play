@@ -4,6 +4,8 @@ import 'package:xml/xml.dart';
 import '../models/board_game.dart';
 import 'cache_service.dart';
 
+typedef ProgressCallback = void Function(String status, {double? progress});
+
 class BGGService {
   static const String baseUrl = 'https://boardgamegeek.com/xmlapi2';
   static const Duration rateLimitDelay = Duration(seconds: 5);
@@ -12,11 +14,17 @@ class BGGService {
   static DateTime? _lastRequestTime;
   final CacheService _cacheService = CacheService();
 
-  Future<List<BoardGame>> getCollection(String username) async {
-    return await _getCollectionWithCache(username);
+  Future<List<BoardGame>> getCollection(
+    String username, {
+    ProgressCallback? onProgress,
+  }) async {
+    return await _getCollectionWithCache(username, onProgress: onProgress);
   }
 
-  Future<List<BoardGame>> _getCollectionWithCache(String username) async {
+  Future<List<BoardGame>> _getCollectionWithCache(
+    String username, {
+    ProgressCallback? onProgress,
+  }) async {
     try {
       // Check if we have cached collection data
       String? collectionXml = await _cacheService.getCachedCollectionData(
@@ -25,16 +33,22 @@ class BGGService {
 
       if (collectionXml == null) {
         // No cache, fetch from API
+        onProgress?.call('Fetching collection from BoardGameGeek...');
         print('No cached collection data for $username, fetching from API...');
         final collectionUri = Uri.parse(
           '$baseUrl/collection?own=1&excludesubtype=boardgameexpansion&username=$username',
         );
-        final collectionResponse = await _makeRequestWithRetry(collectionUri);
+        final collectionResponse = await _makeRequestWithRetry(
+          collectionUri,
+          onProgress: onProgress,
+        );
         collectionXml = collectionResponse.body;
 
         // Cache the collection data
         await _cacheService.cacheCollectionData(username, collectionXml);
+        onProgress?.call('Collection data cached');
       } else {
+        onProgress?.call('Using cached collection data');
         print('Using cached collection data for $username');
       }
 
@@ -62,8 +76,9 @@ class BGGService {
 
       if (missingIds.isNotEmpty) {
         print('Fetching missing thing data for ${missingIds.length} games...');
-        await _fetchAndCacheThingData(missingIds);
+        await _fetchAndCacheThingData(missingIds, onProgress: onProgress);
       } else {
+        onProgress?.call('All game data is cached');
         print('All thing data is cached');
       }
 
@@ -109,11 +124,23 @@ class BGGService {
     }
   }
 
-  Future<void> _fetchAndCacheThingData(List<String> gameIds) async {
+  Future<void> _fetchAndCacheThingData(
+    List<String> gameIds, {
+    ProgressCallback? onProgress,
+  }) async {
     const batchSize = 20;
+    final totalBatches = (gameIds.length / batchSize).ceil();
 
     for (int i = 0; i < gameIds.length; i += batchSize) {
+      final batchNumber = (i / batchSize).floor() + 1;
       final batch = gameIds.skip(i).take(batchSize).toList();
+
+      final progress = batchNumber / totalBatches;
+      onProgress?.call(
+        'Fetching game details ($batchNumber/$totalBatches batches)',
+        progress: progress,
+      );
+
       final detailsUri = Uri.parse(
         '$baseUrl/thing?stats=1&id=${batch.join(',')}',
       );
@@ -133,6 +160,8 @@ class BGGService {
         }
       }
     }
+
+    onProgress?.call('Game details cached', progress: 1.0);
   }
 
   Future<void> _enforceRateLimit() async {
@@ -152,13 +181,17 @@ class BGGService {
     return await http.get(uri);
   }
 
-  Future<http.Response> _makeRequestWithRetry(Uri uri) async {
+  Future<http.Response> _makeRequestWithRetry(
+    Uri uri, {
+    ProgressCallback? onProgress,
+  }) async {
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       final response = await _makeRateLimitedRequest(uri);
 
       if (response.statusCode == 200) {
         return response;
       } else if (response.statusCode == 202) {
+        onProgress?.call('BGG server building collection, retrying...');
         print(
           'Received 202 response, attempt ${attempt + 1}/$maxRetries. Retrying...',
         );
