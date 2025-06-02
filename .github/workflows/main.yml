@@ -1,0 +1,234 @@
+# .github/workflows/flutter_multi_platform_build.yml
+
+name: Flutter Multi-Platform Build
+
+# Controls when the workflow will run
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  analyze_and_test:
+    name: Analyze & Test
+    runs-on: ubuntu-latest # Can run on any OS, ubuntu is common
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Sets up the Flutter SDK
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable' # Use 'beta' or 'dev' for other channels, or specify a version e.g. '3.10.0'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze project source
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+  build_android:
+    name: Build Android (APK & App Bundle)
+    needs: analyze_and_test # Ensures this job runs only if analyze_and_test succeeds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      # It's good practice to set up a specific Java version for Android builds
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin' # Or 'zulu', 'adopt', etc.
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Clean Flutter
+        run: flutter clean
+
+      - name: Build Flutter APK (Release)
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Build Flutter App Bundle (Release)
+        run: flutter build appbundle --release
+
+      - name: Upload App Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-appbundle
+          path: build/app/outputs/bundle/release/app-release.aab
+
+  build_ios:
+    name: Build iOS (IPA)
+    needs: analyze_and_test
+    runs-on: macos-latest # iOS builds require a macOS runner
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Clean Flutter
+        run: flutter clean
+
+      # Note: For actual App Store releases, you'll need to set up code signing.
+      # The --no-codesign flag is used here for CI purposes to build the IPA.
+      - name: Build Flutter iOS (IPA Release)
+        run: flutter build ipa --release --no-codesign
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-ipa
+          path: build/ios/ipa/*.ipa # The path to the generated IPA file
+
+  build_web:
+    name: Build Web
+    needs: analyze_and_test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Clean Flutter
+        run: flutter clean
+
+      - name: Build Flutter Web (Release)
+        run: flutter build web --release
+
+      - name: Upload Web Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: build/web/ # Uploads the entire web build directory
+
+  build_linux:
+    name: Build Linux
+    needs: analyze_and_test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Linux builds require certain dependencies
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ninja-build libgtk-3-dev
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Clean Flutter
+        run: flutter clean
+        
+      - name: Build Flutter Linux (Release)
+        run: flutter build linux --release
+
+      - name: Upload Linux Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: build/linux/x64/release/bundle/ # Path to the bundled Linux application
+
+  build_macos:
+    name: Build macOS (.app)
+    needs: analyze_and_test
+    runs-on: macos-latest # macOS builds require a macOS runner
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Clean Flutter
+        run: flutter clean
+
+      - name: Build Flutter macOS (Release)
+        run: flutter build macos --release
+
+      # It's often better to zip the .app bundle for artifact upload
+      - name: Archive macOS Build
+        shell: bash # Explicitly use bash for zip command consistency
+        run: |
+          cd build/macos/Build/Products/Release/
+          zip -r ../../../../YourAppName-macos-release.zip . -i '*.app' # Zips the .app directory
+          cd ../../../../
+      
+      - name: Upload macOS Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release-app-zip
+          path: YourAppName-macos-release.zip # Path to the zipped .app bundle
+
+  build_windows:
+    name: Build Windows
+    needs: analyze_and_test
+    runs-on: windows-latest # Windows builds require a Windows runner
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Clean Flutter
+        run: flutter clean
+
+      - name: Build Flutter Windows (Release)
+        run: flutter build windows --release
+
+      - name: Upload Windows Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: build/windows/runner/Release/ # Path to the Windows build output
