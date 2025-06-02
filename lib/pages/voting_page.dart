@@ -20,9 +20,12 @@ class _VotingPageState extends State<VotingPage> with TickerProviderStateMixin {
   Map<BoardGame, int> _votes = {};
   late AnimationController _winnerAnimationController;
   late AnimationController _runnersUpAnimationController;
+  late AnimationController _overlayAnimationController;
   late Animation<double> _winnerScaleAnimation;
   late Animation<double> _winnerOpacityAnimation;
   late Animation<double> _runnersUpOpacityAnimation;
+  late Animation<double> _overlayOpacityAnimation;
+  bool _showPassDeviceOverlay = false;
 
   @override
   void initState() {
@@ -38,6 +41,10 @@ class _VotingPageState extends State<VotingPage> with TickerProviderStateMixin {
     );
     _runnersUpAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _overlayAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
 
@@ -61,12 +68,20 @@ class _VotingPageState extends State<VotingPage> with TickerProviderStateMixin {
         curve: Curves.easeInOut,
       ),
     );
+
+    _overlayOpacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _overlayAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _winnerAnimationController.dispose();
     _runnersUpAnimationController.dispose();
+    _overlayAnimationController.dispose();
     super.dispose();
   }
 
@@ -80,6 +95,8 @@ class _VotingPageState extends State<VotingPage> with TickerProviderStateMixin {
       _selectedGames = shuffled.take(4).toList();
     }
   }
+
+  bool get _canReplaceGames => widget.availableGames.length > 4;
 
   void _replaceGame(int index) {
     if (widget.availableGames.length <= 4) return;
@@ -115,13 +132,28 @@ class _VotingPageState extends State<VotingPage> with TickerProviderStateMixin {
       _votes[game] = (_votes[game] ?? 0) + 1;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Pass the device to the person on your left'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    _showPassDeviceMessage();
+  }
+
+  void _showPassDeviceMessage() {
+    setState(() {
+      _showPassDeviceOverlay = true;
+    });
+
+    _overlayAnimationController.forward().then((_) {
+      // Keep overlay visible for 2 seconds
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          _overlayAnimationController.reverse().then((_) {
+            if (mounted) {
+              setState(() {
+                _showPassDeviceOverlay = false;
+              });
+            }
+          });
+        }
+      });
+    });
   }
 
   void _showTallyConfirmation() {
@@ -230,10 +262,40 @@ class _VotingPageState extends State<VotingPage> with TickerProviderStateMixin {
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                   ),
-                  itemCount: _selectedGames.length,
+                  itemCount: 4, // Always show 4 slots
                   itemBuilder: (context, index) {
+                    if (index >= _selectedGames.length) {
+                      // Empty slot for missing games
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.grey[400]!,
+                            style: BorderStyle.solid,
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.add,
+                            size: 48,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                      );
+                    }
+
+                    final game = _selectedGames[index];
+                    final gameCard = BoardGameCard(game: game);
+
+                    if (!_canReplaceGames) {
+                      // No dismissible behavior when there are no replacement games
+                      return gameCard;
+                    }
+
                     return Dismissible(
-                      key: Key(_selectedGames[index].id),
+                      key: Key(game.id),
                       onDismissed: (_) => _replaceGame(index),
                       background: Container(
                         decoration: BoxDecoration(
@@ -248,7 +310,7 @@ class _VotingPageState extends State<VotingPage> with TickerProviderStateMixin {
                           ),
                         ),
                       ),
-                      child: BoardGameCard(game: _selectedGames[index]),
+                      child: gameCard,
                     );
                   },
                 );
@@ -277,57 +339,128 @@ class _VotingPageState extends State<VotingPage> with TickerProviderStateMixin {
   }
 
   Widget _buildVotingPhase() {
-    return Column(
+    return Stack(
       children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // Calculate the size for each game card to fill the screen
-                final availableWidth =
-                    constraints.maxWidth - 16; // Account for spacing
-                final availableHeight =
-                    constraints.maxHeight - 16; // Account for spacing
-                final cardWidth =
-                    (availableWidth - 16) / 2; // 2 columns with spacing
-                final cardHeight =
-                    (availableHeight - 16) / 2; // 2 rows with spacing
+        Column(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Calculate the size for each game card to fill the screen
+                    final availableWidth =
+                        constraints.maxWidth - 16; // Account for spacing
+                    final availableHeight =
+                        constraints.maxHeight - 16; // Account for spacing
+                    final cardWidth =
+                        (availableWidth - 16) / 2; // 2 columns with spacing
+                    final cardHeight =
+                        (availableHeight - 16) / 2; // 2 rows with spacing
 
-                return GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: cardWidth / cardHeight,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: _selectedGames.length,
-                  itemBuilder: (context, index) {
-                    final game = _selectedGames[index];
-                    return GestureDetector(
-                      onTap: () => _voteForGame(game),
-                      child: BoardGameCard(game: game),
+                    return GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: cardWidth / cardHeight,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                      ),
+                      itemCount: 4, // Always show 4 slots
+                      itemBuilder: (context, index) {
+                        if (index >= _selectedGames.length) {
+                          // Empty slot for missing games
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.grey[300]!,
+                                style: BorderStyle.solid,
+                                width: 1,
+                              ),
+                            ),
+                          );
+                        }
+
+                        final game = _selectedGames[index];
+                        return GestureDetector(
+                          onTap: () => _voteForGame(game),
+                          child: BoardGameCard(game: game),
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _showTallyConfirmation,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
               ),
-              child: const Text('Tally votes', style: TextStyle(fontSize: 16)),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _showTallyConfirmation,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text(
+                    'Tally votes',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
+        // Pass device overlay
+        if (_showPassDeviceOverlay)
+          AnimatedBuilder(
+            animation: _overlayAnimationController,
+            builder: (context, child) {
+              return Opacity(
+                opacity: _overlayOpacityAnimation.value,
+                child: Container(
+                  color: Colors.black.withOpacity(0.7),
+                  child: Center(
+                    child: Container(
+                      margin: const EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.swap_horiz,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Pass the device to the person on your left',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
       ],
     );
   }

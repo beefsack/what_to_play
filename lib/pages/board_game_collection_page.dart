@@ -149,11 +149,11 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
   }
 
   void _startVoting() {
-    if (_filteredGames.length < 4) {
+    if (_filteredGames.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Need at least 4 games to start voting. Currently have ${_filteredGames.length} games.',
+            'Need at least 2 games to start voting. Currently have ${_filteredGames.length} games.',
           ),
           action:
               _currentFilter.hasActiveFilters
