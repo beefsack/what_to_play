@@ -23,6 +23,7 @@ class GameFilter {
   final int? maxTime;
   final double? minWeight;
   final double? maxWeight;
+  final int? minAge;
 
   GameFilter({
     this.playerCount,
@@ -31,6 +32,7 @@ class GameFilter {
     this.maxTime,
     this.minWeight,
     this.maxWeight,
+    this.minAge,
   });
 
   bool get hasActiveFilters {
@@ -38,7 +40,8 @@ class GameFilter {
         minTime != null ||
         maxTime != null ||
         minWeight != null ||
-        maxWeight != null;
+        maxWeight != null ||
+        minAge != null;
   }
 
   GameFilter copyWith({
@@ -48,11 +51,13 @@ class GameFilter {
     int? maxTime,
     double? minWeight,
     double? maxWeight,
+    int? minAge,
     bool clearPlayerCount = false,
     bool clearMinTime = false,
     bool clearMaxTime = false,
     bool clearMinWeight = false,
     bool clearMaxWeight = false,
+    bool clearMinAge = false,
   }) {
     return GameFilter(
       playerCount: clearPlayerCount ? null : (playerCount ?? this.playerCount),
@@ -61,6 +66,7 @@ class GameFilter {
       maxTime: clearMaxTime ? null : (maxTime ?? this.maxTime),
       minWeight: clearMinWeight ? null : (minWeight ?? this.minWeight),
       maxWeight: clearMaxWeight ? null : (maxWeight ?? this.maxWeight),
+      minAge: clearMinAge ? null : (minAge ?? this.minAge),
     );
   }
 
@@ -95,6 +101,10 @@ class GameFilter {
       } else {
         filters.add('Weight: ≤${maxWeight!.toStringAsFixed(1)}');
       }
+    }
+
+    if (minAge != null) {
+      filters.add('Age: ${minAge}+');
     }
 
     return filters.join(', ');

@@ -279,6 +279,9 @@ class BGGService {
       detailItem,
     );
 
+    // Get suggested age from poll
+    final suggestedAge = _getSuggestedAge(detailItem);
+
     return BoardGame(
       id: id,
       name: name,
@@ -289,6 +292,7 @@ class BGGService {
       maxPlayers: maxPlayers,
       playingTime: playingTime,
       minAge: minAge,
+      suggestedAge: suggestedAge,
       averageWeight: averageWeight,
       playerCountRecommendations: playerCountRecommendations,
     );
@@ -363,5 +367,64 @@ class BGGService {
     }
 
     return PlayerCountRecommendations(recommendations);
+  }
+
+  int? _getSuggestedAge(XmlElement item) {
+    final polls = item.findAllElements('poll');
+    final suggestedAgePoll =
+        polls
+            .where((poll) => poll.getAttribute('name') == 'suggested_playerage')
+            .firstOrNull;
+
+    if (suggestedAgePoll == null) return null;
+
+    final totalVotesStr = suggestedAgePoll.getAttribute('totalvotes');
+    final totalVotes = int.tryParse(totalVotesStr ?? '0') ?? 0;
+
+    if (totalVotes == 0) return null;
+
+    // Get all age results and their vote counts
+    final ageVotes = <int, int>{};
+    final results = suggestedAgePoll.findAllElements('result');
+
+    for (final result in results) {
+      final valueStr = result.getAttribute('value');
+      final numVotesStr = result.getAttribute('numvotes');
+
+      if (valueStr == null || numVotesStr == null) continue;
+
+      final numVotes = int.tryParse(numVotesStr) ?? 0;
+      if (numVotes == 0) continue;
+
+      // Parse age from value string (e.g., "21 and up" -> 21)
+      int? age;
+      if (valueStr.contains(' ')) {
+        // Handle cases like "21 and up"
+        age = int.tryParse(valueStr.split(' ').first);
+      } else {
+        age = int.tryParse(valueStr);
+      }
+
+      if (age != null) {
+        ageVotes[age] = numVotes;
+      }
+    }
+
+    if (ageVotes.isEmpty) return null;
+
+    // Sort ages and calculate cumulative votes to find 50th percentile
+    final sortedAges = ageVotes.keys.toList()..sort();
+    final targetVotes = (totalVotes / 2).ceil();
+    int cumulativeVotes = 0;
+
+    for (final age in sortedAges) {
+      cumulativeVotes += ageVotes[age]!;
+      if (cumulativeVotes >= targetVotes) {
+        return age;
+      }
+    }
+
+    // Fallback to the highest age if we somehow don't find the 50th percentile
+    return sortedAges.last;
   }
 }

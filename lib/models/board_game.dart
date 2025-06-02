@@ -10,6 +10,7 @@ class BoardGame {
   final int maxPlayers;
   final int playingTime;
   final int minAge;
+  final int? suggestedAge;
   final double averageWeight;
   final PlayerCountRecommendations playerCountRecommendations;
 
@@ -23,6 +24,7 @@ class BoardGame {
     required this.maxPlayers,
     required this.playingTime,
     required this.minAge,
+    this.suggestedAge,
     required this.averageWeight,
     required this.playerCountRecommendations,
   });
@@ -39,7 +41,8 @@ class BoardGame {
   }
 
   String get ageText {
-    return '$minAge+';
+    final age = suggestedAge ?? minAge;
+    return '$age+';
   }
 
   String get weightText {

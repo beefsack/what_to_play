@@ -127,6 +127,14 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
               return false;
             }
 
+            // Age filter - use suggested age if available, otherwise fall back to minAge
+            if (_currentFilter.minAge != null) {
+              final gameAge = game.suggestedAge ?? game.minAge;
+              if (gameAge > _currentFilter.minAge!) {
+                return false;
+              }
+            }
+
             return true;
           }).toList();
     });

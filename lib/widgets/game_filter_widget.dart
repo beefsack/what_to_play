@@ -22,6 +22,7 @@ class _GameFilterWidgetState extends State<GameFilterWidget> {
   final _maxTimeController = TextEditingController();
   final _minWeightController = TextEditingController();
   final _maxWeightController = TextEditingController();
+  final _minAgeController = TextEditingController();
 
   @override
   void initState() {
@@ -36,6 +37,7 @@ class _GameFilterWidgetState extends State<GameFilterWidget> {
     _maxTimeController.text = _currentFilter.maxTime?.toString() ?? '';
     _minWeightController.text = _currentFilter.minWeight?.toString() ?? '';
     _maxWeightController.text = _currentFilter.maxWeight?.toString() ?? '';
+    _minAgeController.text = _currentFilter.minAge?.toString() ?? '';
   }
 
   @override
@@ -45,6 +47,7 @@ class _GameFilterWidgetState extends State<GameFilterWidget> {
     _maxTimeController.dispose();
     _minWeightController.dispose();
     _maxWeightController.dispose();
+    _minAgeController.dispose();
     super.dispose();
   }
 
@@ -54,6 +57,7 @@ class _GameFilterWidgetState extends State<GameFilterWidget> {
     final maxTime = int.tryParse(_maxTimeController.text);
     final minWeight = double.tryParse(_minWeightController.text);
     final maxWeight = double.tryParse(_maxWeightController.text);
+    final minAge = int.tryParse(_minAgeController.text);
 
     final newFilter = GameFilter(
       playerCount: playerCount,
@@ -62,6 +66,7 @@ class _GameFilterWidgetState extends State<GameFilterWidget> {
       maxTime: maxTime,
       minWeight: minWeight,
       maxWeight: maxWeight,
+      minAge: minAge,
     );
 
     widget.onFilterChanged(newFilter);
@@ -235,6 +240,26 @@ class _GameFilterWidgetState extends State<GameFilterWidget> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Age Section
+                    const Text(
+                      'Minimum Age',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _minAgeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Minimum age',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      keyboardType: TextInputType.number,
                     ),
                   ],
                 ),
