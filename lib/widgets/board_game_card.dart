@@ -154,13 +154,35 @@ class BoardGameCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (game.playerCountRecommendation.isNotEmpty) ...[
+                  // Best with player count
+                  if (game.playerCountRecommendations
+                      .getBestWithText()
+                      .isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
-                      game.playerCountRecommendation,
+                      game.playerCountRecommendations.getBestWithText(),
                       style: TextStyle(
                         color: Colors.yellow.withOpacity(0.9),
                         fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  // Recommended with player count
+                  if (game.playerCountRecommendations
+                          .getRecommendedWithText()
+                          .isNotEmpty &&
+                      game.playerCountRecommendations.getBestWithText() !=
+                          game.playerCountRecommendations
+                              .getRecommendedWithText()) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      game.playerCountRecommendations.getRecommendedWithText(),
+                      style: TextStyle(
+                        color: Colors.orange.withOpacity(0.9),
+                        fontSize: 8,
                         fontStyle: FontStyle.italic,
                       ),
                       maxLines: 1,

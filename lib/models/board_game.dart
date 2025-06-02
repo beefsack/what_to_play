@@ -1,3 +1,5 @@
+import 'player_count_recommendation.dart';
+
 class BoardGame {
   final String id;
   final String name;
@@ -9,7 +11,7 @@ class BoardGame {
   final int playingTime;
   final int minAge;
   final double averageWeight;
-  final String playerCountRecommendation;
+  final PlayerCountRecommendations playerCountRecommendations;
 
   BoardGame({
     required this.id,
@@ -22,7 +24,7 @@ class BoardGame {
     required this.playingTime,
     required this.minAge,
     required this.averageWeight,
-    required this.playerCountRecommendation,
+    required this.playerCountRecommendations,
   });
 
   String get playerCountText {

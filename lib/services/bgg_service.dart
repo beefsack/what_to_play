@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import '../models/board_game.dart';
+import '../models/player_count_recommendation.dart';
 import 'cache_service.dart';
 
 typedef ProgressCallback = void Function(String status, {double? progress});
@@ -348,8 +349,10 @@ class BGGService {
         double.tryParse(averageWeightElement?.getAttribute('value') ?? '0') ??
         0.0;
 
-    // Get player count recommendation
-    final playerCountRecommendation = _getPlayerCountRecommendation(detailItem);
+    // Get player count recommendations
+    final playerCountRecommendations = _getPlayerCountRecommendations(
+      detailItem,
+    );
 
     return BoardGame(
       id: id,
@@ -362,11 +365,11 @@ class BGGService {
       playingTime: playingTime,
       minAge: minAge,
       averageWeight: averageWeight,
-      playerCountRecommendation: playerCountRecommendation,
+      playerCountRecommendations: playerCountRecommendations,
     );
   }
 
-  String _getPlayerCountRecommendation(XmlElement item) {
+  PlayerCountRecommendations _getPlayerCountRecommendations(XmlElement item) {
     final polls = item.findAllElements('poll');
     final playerCountPoll =
         polls
@@ -375,29 +378,65 @@ class BGGService {
             )
             .firstOrNull;
 
-    if (playerCountPoll == null) return '';
+    final recommendations = <int, PlayerCountRecommendation>{};
 
-    final pollSummary =
-        item
-            .findAllElements('poll-summary')
-            .where(
-              (summary) =>
-                  summary.getAttribute('name') == 'suggested_numplayers',
-            )
-            .firstOrNull;
+    if (playerCountPoll != null) {
+      final results = playerCountPoll.findAllElements('results');
 
-    if (pollSummary != null) {
-      final bestWithElement =
-          pollSummary
-              .findAllElements('result')
-              .where((result) => result.getAttribute('name') == 'bestwith')
-              .firstOrNull;
+      for (final result in results) {
+        final numPlayersStr = result.getAttribute('numplayers');
+        if (numPlayersStr == null) continue;
 
-      if (bestWithElement != null) {
-        return bestWithElement.getAttribute('value') ?? '';
+        // Handle special cases like "1+" or "2+"
+        int? numPlayers;
+        if (numPlayersStr.endsWith('+')) {
+          numPlayers = int.tryParse(
+            numPlayersStr.substring(0, numPlayersStr.length - 1),
+          );
+        } else {
+          numPlayers = int.tryParse(numPlayersStr);
+        }
+
+        if (numPlayers == null) continue;
+
+        // Get vote counts for each recommendation type
+        int bestVotes = 0;
+        int recommendedVotes = 0;
+        int notRecommendedVotes = 0;
+
+        final resultElements = result.findAllElements('result');
+        for (final resultElement in resultElements) {
+          final value = resultElement.getAttribute('value');
+          final numVotesStr = resultElement.getAttribute('numvotes');
+          final numVotes = int.tryParse(numVotesStr ?? '0') ?? 0;
+
+          switch (value) {
+            case 'Best':
+              bestVotes = numVotes;
+              break;
+            case 'Recommended':
+              recommendedVotes = numVotes;
+              break;
+            case 'Not Recommended':
+              notRecommendedVotes = numVotes;
+              break;
+          }
+        }
+
+        // Apply the logic for determining recommendation
+        PlayerCountRecommendation recommendation;
+        if (bestVotes > (recommendedVotes + notRecommendedVotes)) {
+          recommendation = PlayerCountRecommendation.best;
+        } else if ((bestVotes + recommendedVotes) > notRecommendedVotes) {
+          recommendation = PlayerCountRecommendation.recommended;
+        } else {
+          recommendation = PlayerCountRecommendation.notRecommended;
+        }
+
+        recommendations[numPlayers] = recommendation;
       }
     }
 
-    return '';
+    return PlayerCountRecommendations(recommendations);
   }
 }

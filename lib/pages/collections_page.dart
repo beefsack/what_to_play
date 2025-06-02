@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/collection.dart';
 import '../services/collection_service.dart';
+import '../services/cache_service.dart';
 import 'board_game_collection_page.dart';
 import 'add_edit_collection_page.dart';
 
@@ -13,6 +14,7 @@ class CollectionsPage extends StatefulWidget {
 
 class _CollectionsPageState extends State<CollectionsPage> {
   final CollectionService _collectionService = CollectionService();
+  final CacheService _cacheService = CacheService();
   List<Collection> _collections = [];
   bool _isLoading = false;
 
@@ -121,12 +123,75 @@ class _CollectionsPageState extends State<CollectionsPage> {
     );
   }
 
+  Future<void> _clearCache() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Clear Local Cache'),
+            content: const Text(
+              'This will clear all cached collection and game data. You will need to re-download data from BoardGameGeek when viewing collections.\n\nAre you sure you want to continue?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Clear Cache'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _cacheService.clearAllCache();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cache cleared successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error clearing cache: $e')));
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('Board Game Collections'),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'clear_cache':
+                  _clearCache();
+                  break;
+              }
+            },
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(
+                    value: 'clear_cache',
+                    child: ListTile(
+                      leading: Icon(Icons.clear_all),
+                      title: Text('Clear Local Cache'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+          ),
+        ],
       ),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton(
