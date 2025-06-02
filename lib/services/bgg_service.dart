@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import '../models/board_game.dart';
+import 'cache_service.dart';
 
 class BGGService {
   static const String baseUrl = 'https://boardgamegeek.com/xmlapi2';
@@ -9,9 +10,129 @@ class BGGService {
   static const int maxRetries = 10;
 
   static DateTime? _lastRequestTime;
+  final CacheService _cacheService = CacheService();
 
   Future<List<BoardGame>> getCollection(String username) async {
-    return await _getCollectionFromAPI(username);
+    return await _getCollectionWithCache(username);
+  }
+
+  Future<List<BoardGame>> _getCollectionWithCache(String username) async {
+    try {
+      // Check if we have cached collection data
+      String? collectionXml = await _cacheService.getCachedCollectionData(
+        username,
+      );
+
+      if (collectionXml == null) {
+        // No cache, fetch from API
+        print('No cached collection data for $username, fetching from API...');
+        final collectionUri = Uri.parse(
+          '$baseUrl/collection?own=1&excludesubtype=boardgameexpansion&username=$username',
+        );
+        final collectionResponse = await _makeRequestWithRetry(collectionUri);
+        collectionXml = collectionResponse.body;
+
+        // Cache the collection data
+        await _cacheService.cacheCollectionData(username, collectionXml);
+      } else {
+        print('Using cached collection data for $username');
+      }
+
+      final collectionDocument = XmlDocument.parse(collectionXml);
+      final items = collectionDocument.findAllElements('item');
+
+      if (items.isEmpty) {
+        return [];
+      }
+
+      // Extract object IDs
+      final objectIds =
+          items
+              .map((item) => item.getAttribute('objectid'))
+              .where((id) => id != null)
+              .cast<String>()
+              .toList();
+
+      if (objectIds.isEmpty) {
+        return [];
+      }
+
+      // Check which thing data we need to fetch
+      final missingIds = await _cacheService.getMissingThingCacheIds(objectIds);
+
+      if (missingIds.isNotEmpty) {
+        print('Fetching missing thing data for ${missingIds.length} games...');
+        await _fetchAndCacheThingData(missingIds);
+      } else {
+        print('All thing data is cached');
+      }
+
+      // Now build the games from cached data
+      final games = <BoardGame>[];
+      final collectionMap = <String, XmlElement>{};
+
+      for (final item in items) {
+        final id = item.getAttribute('objectid');
+        if (id != null) {
+          collectionMap[id] = item;
+        }
+      }
+
+      for (final objectId in objectIds) {
+        final cachedThingXml = await _cacheService.getCachedThingData(objectId);
+        if (cachedThingXml == null) continue;
+
+        final thingDocument = XmlDocument.parse(cachedThingXml);
+        final thingItems = thingDocument.findAllElements('item');
+
+        for (final thingItem in thingItems) {
+          final id = thingItem.getAttribute('id');
+          if (id == objectId) {
+            final collectionItem = collectionMap[id];
+            if (collectionItem != null) {
+              try {
+                final game = _parseGameFromXml(thingItem, collectionItem);
+                games.add(game);
+              } catch (e) {
+                print('Error parsing game $id: $e');
+              }
+            }
+            break;
+          }
+        }
+      }
+
+      return games;
+    } catch (e) {
+      print('Error fetching collection with cache: $e');
+      throw Exception('Failed to load collection: $e');
+    }
+  }
+
+  Future<void> _fetchAndCacheThingData(List<String> gameIds) async {
+    const batchSize = 20;
+
+    for (int i = 0; i < gameIds.length; i += batchSize) {
+      final batch = gameIds.skip(i).take(batchSize).toList();
+      final detailsUri = Uri.parse(
+        '$baseUrl/thing?stats=1&id=${batch.join(',')}',
+      );
+      final detailsResponse = await _makeRequestWithRetry(detailsUri);
+
+      // Cache each individual game's data
+      final detailsDocument = XmlDocument.parse(detailsResponse.body);
+      final items = detailsDocument.findAllElements('item');
+
+      for (final item in items) {
+        final id = item.getAttribute('id');
+        if (id != null) {
+          // Create a minimal XML document for this single item
+          final singleItemXml =
+              '<?xml version="1.0" encoding="utf-8"?><items>${item.toXmlString()}</items>';
+          await _cacheService.cacheThingData(id, singleItemXml);
+        }
+      }
+    }
   }
 
   Future<void> _enforceRateLimit() async {
