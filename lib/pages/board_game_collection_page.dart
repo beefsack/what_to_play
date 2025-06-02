@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/board_game.dart';
 import '../models/game_filter.dart';
-import '../models/player_count_recommendation.dart';
 import '../services/bgg_service.dart';
 import '../widgets/board_game_card.dart';
 import '../widgets/game_filter_widget.dart';
@@ -101,8 +100,9 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
                   break;
                 case PlayerCountFilterType.minMax:
                   if (playerCount < game.minPlayers ||
-                      playerCount > game.maxPlayers)
+                      playerCount > game.maxPlayers) {
                     return false;
+                  }
                   break;
               }
             }
@@ -335,7 +335,7 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          color: Theme.of(context).colorScheme.surfaceVariant,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

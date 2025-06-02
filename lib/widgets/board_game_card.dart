@@ -52,7 +52,10 @@ class BoardGameCard extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.7),
+                ],
                 stops: const [0.5, 1.0],
               ),
             ),
@@ -86,13 +89,13 @@ class BoardGameCard extends StatelessWidget {
                       Icon(
                         Icons.people,
                         size: 12,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                       const SizedBox(width: 2),
                       Text(
                         game.playerCountText,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 10,
                         ),
                       ),
@@ -104,13 +107,13 @@ class BoardGameCard extends StatelessWidget {
                       Icon(
                         Icons.access_time,
                         size: 12,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                       const SizedBox(width: 2),
                       Text(
                         game.playingTimeText,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 10,
                         ),
                       ),
@@ -118,13 +121,13 @@ class BoardGameCard extends StatelessWidget {
                       Icon(
                         Icons.child_care,
                         size: 12,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                       const SizedBox(width: 2),
                       Text(
                         game.ageText,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 10,
                         ),
                       ),
@@ -136,13 +139,13 @@ class BoardGameCard extends StatelessWidget {
                       Icon(
                         Icons.fitness_center,
                         size: 12,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                       const SizedBox(width: 2),
                       Text(
                         game.weightText,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 10,
                         ),
                       ),
@@ -156,7 +159,7 @@ class BoardGameCard extends StatelessWidget {
                     Text(
                       game.playerCountRecommendations.getBestWithText(),
                       style: TextStyle(
-                        color: Colors.yellow.withOpacity(0.9),
+                        color: Colors.yellow.withValues(alpha: 0.9),
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
                       ),
@@ -175,7 +178,7 @@ class BoardGameCard extends StatelessWidget {
                     Text(
                       game.playerCountRecommendations.getRecommendedWithText(),
                       style: TextStyle(
-                        color: Colors.orange.withOpacity(0.9),
+                        color: Colors.orange.withValues(alpha: 0.9),
                         fontSize: 8,
                         fontStyle: FontStyle.italic,
                       ),

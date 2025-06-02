@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import '../models/board_game.dart';
 
 class CacheService {
   static const String _collectionCachePrefix = 'collection_';
@@ -14,12 +13,12 @@ class CacheService {
 
   Future<File> _getCollectionCacheFile(String username) async {
     final path = await _localPath;
-    return File('$path/${_collectionCachePrefix}$username.json');
+    return File('$path/$_collectionCachePrefix$username.json');
   }
 
   Future<File> _getThingCacheFile(String gameId) async {
     final path = await _localPath;
-    return File('$path/${_thingCachePrefix}$gameId.json');
+    return File('$path/$_thingCachePrefix$gameId.json');
   }
 
   // Collection cache methods

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 import '../models/board_game.dart';
@@ -210,86 +209,6 @@ class BGGService {
     throw Exception(
       'Max retries ($maxRetries) exceeded for request to ${uri.toString()}',
     );
-  }
-
-  Future<List<BoardGame>> _getCollectionFromAPI(String username) async {
-    try {
-      // First, get the collection with retry logic
-      final collectionUri = Uri.parse(
-        '$baseUrl/collection?own=1&excludesubtype=boardgameexpansion&username=$username',
-      );
-      final collectionResponse = await _makeRequestWithRetry(collectionUri);
-
-      final collectionDocument = XmlDocument.parse(collectionResponse.body);
-      final items = collectionDocument.findAllElements('item');
-
-      if (items.isEmpty) {
-        return [];
-      }
-
-      // Extract object IDs
-      final objectIds =
-          items
-              .map((item) => item.getAttribute('objectid'))
-              .where((id) => id != null)
-              .cast<String>()
-              .toList();
-
-      if (objectIds.isEmpty) {
-        return [];
-      }
-
-      // Get detailed information for all games with retry logic
-      // BGG API only supports 20 object IDs per request, so we need to batch them
-      final allDetailItems = <XmlElement>[];
-      const batchSize = 20;
-
-      for (int i = 0; i < objectIds.length; i += batchSize) {
-        final batch = objectIds.skip(i).take(batchSize).toList();
-        final detailsUri = Uri.parse(
-          '$baseUrl/thing?stats=1&id=${batch.join(',')}',
-        );
-        final detailsResponse = await _makeRequestWithRetry(detailsUri);
-
-        final detailsDocument = XmlDocument.parse(detailsResponse.body);
-        final batchItems = detailsDocument.findAllElements('item');
-        allDetailItems.addAll(batchItems);
-      }
-
-      final detailItems = allDetailItems;
-
-      // Create a map of collection data for quick lookup
-      final collectionMap = <String, XmlElement>{};
-      for (final item in items) {
-        final id = item.getAttribute('objectid');
-        if (id != null) {
-          collectionMap[id] = item;
-        }
-      }
-
-      final games = <BoardGame>[];
-
-      for (final item in detailItems) {
-        final id = item.getAttribute('id');
-        if (id == null) continue;
-
-        final collectionItem = collectionMap[id];
-        if (collectionItem == null) continue;
-
-        try {
-          final game = _parseGameFromXml(item, collectionItem);
-          games.add(game);
-        } catch (e) {
-          print('Error parsing game $id: $e');
-          // Continue with other games
-        }
-      }
-
-      return games;
-    } catch (e) {
-      print('Error fetching collection: $e');
-      throw Exception('Failed to load collection: $e');
-    }
   }
 
   BoardGame _parseGameFromXml(
