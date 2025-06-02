@@ -5,6 +5,7 @@ import '../models/player_count_recommendation.dart';
 import '../services/bgg_service.dart';
 import '../widgets/board_game_card.dart';
 import '../widgets/game_filter_widget.dart';
+import 'voting_page.dart';
 
 class BoardGameCollectionPage extends StatefulWidget {
   final String username;
@@ -147,6 +148,37 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
     );
   }
 
+  void _startVoting() {
+    if (_filteredGames.length < 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Need at least 4 games to start voting. Currently have ${_filteredGames.length} games.',
+          ),
+          action:
+              _currentFilter.hasActiveFilters
+                  ? SnackBarAction(
+                    label: 'Clear Filters',
+                    onPressed: () {
+                      setState(() {
+                        _currentFilter = GameFilter();
+                      });
+                      _applyFilter();
+                    },
+                  )
+                  : null,
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => VotingPage(availableGames: _filteredGames),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -171,6 +203,14 @@ class _BoardGameCollectionPageState extends State<BoardGameCollectionPage> {
         ],
       ),
       body: _buildBody(),
+      floatingActionButton:
+          _isLoading || _allGames.isEmpty
+              ? null
+              : FloatingActionButton.extended(
+                onPressed: _startVoting,
+                icon: const Icon(Icons.how_to_vote),
+                label: const Text('Vote on what to play'),
+              ),
     );
   }
 
