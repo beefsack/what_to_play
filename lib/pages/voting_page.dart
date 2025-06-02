@@ -98,6 +98,8 @@ class _VotingPageState extends State<VotingPage> with TickerProviderStateMixin {
 
   bool get _canReplaceGames => widget.availableGames.length > 4;
 
+  bool get _hasVotes => _votes.values.any((votes) => votes > 0);
+
   void _replaceGame(int index) {
     if (widget.availableGames.length <= 4) return;
 
@@ -399,7 +401,7 @@ class _VotingPageState extends State<VotingPage> with TickerProviderStateMixin {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _showTallyConfirmation,
+                  onPressed: _hasVotes ? _showTallyConfirmation : null,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
